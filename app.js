@@ -1,20 +1,30 @@
-const express = require("express"),
-  path = require("path"),
-  bodyParser = require("body-parser"),
-  mongoose = require("mongoose"),
-  app = express();
+const config = require('./utils/config');
+const express = require("express");
+const bodyParser = require("body-parser");
+const mongoose = require("mongoose");
+const app = express();
+require('express-async-errors');
+const cors = require('cors');
+const booksRouter = require();
+const middleware = require();
+const usersRouter = require();
+const loginRouter = require();
 
-const BookService = require("./book");
+logger.info('connecting to', config.MONGODB_URI);
 
-const port = process.env.PORT || 3000;
+// const uri = "mongodb://localhost:27017/bookstore";
 
-mongoose.Promise= global.Promise;
-
-const uri = "mongodb://localhost:27017/bookstore";
-mongoose.connect(uri, {
-  useUnifiedTopology: true,
-  useNewUrlParser: true,
-}),
+mongoose
+  .connect(config.MONGODB_URI, {
+    useUnifiedTopology: true,
+    useNewUrlParser: true,
+  })
+  .then(() => {
+    logger.info('connected to MongoDB')
+  })
+  .catch((error) => {
+    logger.error('error connecting to MogoDB:', error.message)
+  });
 
 app.use(
   bodyParser.urlencoded({
@@ -23,37 +33,15 @@ app.use(
 );
 
 app.use(bodyParser.json());
+app.use(expres.static('build'));
+app.use(express.json());
+app.use(cors());
+app.use(middleware.requestLogger);
+app.use(middleware.tokenExtractor);
+app.use('/api/books', booksRouter);
+app.use('/api/users', usersRouter);
+app.use('/api.login', loginRouter);
+app.use(middleware.unknownEndpoint);
+app.use(middleware.errorHandler);
 
-app.use(express.static(path.resolve(__dirname, "public")));
-
-app.get("/", function(req, res) {
-  res.sendFile(path.join(__dirname, "public", "index.html"));
-});
-
-app.get("/listBooks", async function (req, res, next) {
-  try {
-    const books = await BookService.listBooks();
-    res.json(books);
-  } catch (error) {
-    next(error)
-  }
-});
-
-app.get("/addBook", async function (req, res, next) {
-  const bookname = req.query.bookname;
-  const author = req.query.author;
-  const genre = req.query.genre;
-  const published = req.query.published;
-  const dateread = req.query. dateread;
-
-  try {
-    const books = await BookService.addBook(bookname, author, genre, published, dateread);
-    res.json(books);
-  } catch (error) {
-    next(error);
-  }
-});
-
-const server = app.listen(port, function() {
-  console.log("The server is running on http://localhost:" + port);
-});
+module.exports = app;
