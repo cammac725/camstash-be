@@ -1,20 +1,14 @@
 const mongoose = require('mongoose');
 
-mongoose.set('useFindAndModify', false);
+// mongoose.set('useFindAndModify', false);
 
-const Schema = new mongoose.Schema();
-
-const bookSchema = Schema({
-  id: Number,
+const bookSchema = new mongoose.Schema({
+  // id: Number,
   title: { type: String, required: true },
   author: { type: String, required: true },
   genre: {type: String, required: true },
-  published: Number,
-  dateread: Number,
-  user: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-  },
+  published: {type: Number, required: true},
+  dateread: {type: Number, required: true},
 });
 
 bookSchema.set('toJSON', {

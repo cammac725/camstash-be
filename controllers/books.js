@@ -1,14 +1,9 @@
 const booksRouter = require('express').Router();
 const Book = require('../models/book');
-const User = require('../models/user');
-const jwt = require('jsonwebtoken');
 
 booksRouter.get('/', async (req, res, next) => {
   try {
-    const books = await Book.find({}).populate('user', {
-      username: 1
-    })
-
+    const books = await Book.find({})
     if (books) {
       res.json(books.map((allBooks) => allBooks.toJSON()))
     } else {
@@ -35,20 +30,14 @@ booksRouter.get('/:id', async (req, res, next) => {
 
 booksRouter.post('/', async (req, res, next) => {
   const body = req.body;
-  const decodedToken = jwt.verify(req.token, process.env.SECRET)
+  // const books = await Book.find({})
 
-  if (!req.token || !decodedToken.id || req.token === null) {
-    return res.status(401).json({ error: 'token missing or invalid' })
-  }
-
-  const user = await User.findById(decodedToken.id);
   const book = new Book({
     title: body.title,
     author: body.author,
     genre: body.genre,
     published: body.published,
-    dateread: body.read,
-    user: user._id,
+    dateread: body.dateread,
   });
 
   try {
@@ -60,8 +49,7 @@ booksRouter.post('/', async (req, res, next) => {
       body.dateread !== undefined
       ) {
         const savedBook = await book.save();
-        user.books - user.books.concat(savedBook._id)
-        await user.save()
+        // books = books.concat(savedBook._id)
         res.json(savedBook.toJSON)
       } else {
         res.status(400).send('Bad request. Information missing.')
@@ -72,18 +60,7 @@ booksRouter.post('/', async (req, res, next) => {
 });
 
 booksRouter.delete('/:id', async (req, res, next) => {
-  const decodedToken = jwt.verify(req.token, process.env.SECRET);
-
-  if (!req.token || !decodedToken.id) {
-    return res.status(401).json({ error: 'token missing or invalid' })
-  }
-
-  const user = await User.findById(decodedToken.id);
   const book = await Book.findById(req.params.id);
-
-  if (user._id.toString() !== book.user.toString()) {
-    return res.status(400).json({ error: 'invalid user' })
-  }
 
   try {
     await Book.findByIdAndRemove(req.params.id)
