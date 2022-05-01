@@ -1,118 +1,93 @@
-const booksRouter = require('express').Router()
-const Book = require('../models/book')
-const User = require('../models/user')
-const jwt = require('jsonwebtoken')
+const router = require('express').Router()
+const Books= require('./books-model')
 
-booksRouter.get('/', async (req, res, next) => {
+router.get("/", async (req, res) => {
   try {
-    const books = await Book.find({}).populate('user', {
-      username: 1
+    const books = await Books.getAllBooks()
+    res.status(200).json(books)
+  } catch (error) {
+    res.status(500).json({
+      message: 'We ran into an error getting the books'
     })
-    if (books) {
-      res.json(books.map((allBooks) => allBooks.toJSON()))
-    } else {
-      res.status(404).end()
-    }
-  } catch (exception) {
-    next(exception)
   }
 })
 
-booksRouter.get('/:id', async (req, res, next) => {
+router.get("/:id", async (req, res) => {
   try {
-    const books = await Book.findById(req.params.id)
+    const book = await Books.getBookById(req.params.id);
 
-    if (books) {
-      res.json(books.toJSON())
+    if (book) {
+      res.status(200).json(book);
     } else {
-      res.status(404).end()
+      res.status(500).json({
+        message: 'We cannot find the book you requested'
+      })
     }
-  } catch (exception) {
-      next(exception)
+  } catch (error) {
+    res.status(500).json({
+      message: 'The server ran into an error getting the books'
+    })
   }
 })
 
-booksRouter.post('/', async (req, res, next) => {
-  const body = req.body;
-  const decodedToken = jwt.verify(req.token, process.env.SECRET)
-
-  if (!req.token || !decodedToken.id || req.token === null) {
-    return res.status(401).json({ error: 'token missing or invalid' })
+router.post("/", async (req, res) => {
+  const book = req.body;
+  
+  if (book.title) {
+    try {
+      const addedBook = await Books.addBook(book)
+      res.status(201).json(addedBook)
+    } catch (error) {
+      res.status(500).json({
+        message: 'Could not add the book'
+      })
+    }
+  } else {
+    res.status(400).json({
+      message: 'Please provide the title of the book'
+    })
   }
-  const user = await User.findById(decodedToken.id)
+});
 
-  const book = new Book({
-    title: body.title,
-    author: body.author,
-    genre: body.genre,
-    published: body.published,
-    dateread: body.dateread,
-    user: user._id
-  })
-
+router.delete("/:id", async (req, res, next) => {
   try {
-    if (
-      body.title !== undefined &&
-      body.author !== undefined &&
-      body.genre !== undefined &&
-      body.published !== undefined &&
-      body.dateread !== undefined
-      ) {
-        const savedBook = await book.save();
-        user.books = user.books.concat(savedBook._id)
-        await user.save()
-        res.json(savedBook.toJSON)
+    const count = await Books.removeBook(req.params.id)
+    if (count > 0) {
+      res.status(204).end();
+    } else {
+      res.status(404).json({
+        message: 'That book does not exist, maybe it was deleted already'
+      })
+    }
+  } catch (error) {
+    res.status(500).json({
+      message: 'We ran into an error removing the recipe'
+    })
+  }
+});
+
+router.put("/:id", async (req, res) => {
+  const changes = req.body
+  if (changes.name) {
+    try {
+      const updated = await Books.updateBook(req.params.id, changes)
+      if (updated) {
+        res.status(200).json(updated)
       } else {
-        res.status(400).send('Bad request. Information missing.')
+        res.status(404).json({
+          message: 'That book does not exist'
+        })
       }
-  } catch (exception) {
-    next(exception)
+    } catch (error) {
+      res.status(500).json({
+        message: 'We ran into an error updating the book'
+      })  
+    }
+  } else {
+    res.status(400).json({
+      message: 'Please provide the title of the book'
+    })
   }
-})
+});
 
-booksRouter.delete('/:id', async (req, res, next) => {
-  const decodedToken = jwt.verify(req.token, process.env.SECRET)
-
-  if (!req.token || !decodedToken.id) {
-    return res.status(401).json({ error: 'token missing or invalid' })
-  }
-  const user = await User.findById(decodedToken.id)
-  const book = await Book.findById(req.params.id);
-
-  if (user._id.toString() !== book.user.toString()) {
-    return res.status(400).json({ error: 'invalid user' })
-  }
-  if (!req.token || !decodedToken.id) {
-    return res.status(401).json({ error: 'token missing or invalid' })
-  }
-
-  try {
-    await Book.findByIdAndRemove(req.params.id)
-    res.status(204).end()
-  } catch (exception) {
-      next(exception)
-  }
-})
-
-booksRouter.put('/:id', async (req, res, next) => {
-  const body = req.body;
-  const book = {
-    title: body.title,
-    author: body.author,
-    genre: body.genre,
-    published: body.published,
-    dateread: body.dateread,
-  }
-
-  try {
-    const books = await Book.findByIdAndUpdate(req.params.id, book, {
-      new: true,
-    });
-    res.json(books.toJSON)
-  } catch (exception) {
-      console.log('exception', exception)
-      next(exception)
-  }
-})
-
-module.exports = booksRouter
+module.exports = router
